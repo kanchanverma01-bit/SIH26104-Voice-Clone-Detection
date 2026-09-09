@@ -1,26 +1,53 @@
+import numpy as np
+import soundfile as sf
 import torch
-from .config import MODEL_PATH, DEVICE
-from .AASIST import Model
+from scipy.signal import resample_poly
 
-MODEL_CONFIG = {
-    "architecture": "AASIST",
-    "nb_samp": 64600,
-    "first_conv": 128,
-    "filts": [70, [1, 32], [32, 32], [32, 64], [64, 64]],
-    "gat_dims": [64, 32],
-    "pool_ratios": [0.5, 0.7, 0.5, 0.5],
-    "temperatures": [2.0, 2.0, 100.0, 100.0]
-}
-def load_model():
-    model = Model(MODEL_CONFIG)
+from .aasist import AASISTDetector
 
-    checkpoint = torch.load(
-        MODEL_PATH,
-        map_location=DEVICE
-    )
 
-    model.load_state_dict(checkpoint)
-    model.to(DEVICE)
-    model.eval()
+TARGET_SR = 16000
+TARGET_SAMPLES = 64600
 
-    return model
+
+def load_audio(audio_path):
+    audio, sr = sf.read(audio_path, dtype="float32")
+
+    # Stereo → Mono
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=1)
+
+    # Resample → 16 kHz
+    if sr != TARGET_SR:
+        audio = resample_poly(
+            audio,
+            TARGET_SR,
+            sr
+        ).astype(np.float32)
+
+    # Empty audio check
+    if len(audio) == 0:
+        raise ValueError("Audio file is empty.")
+
+    # Pad short audio
+    if len(audio) < TARGET_SAMPLES:
+        repeats = (TARGET_SAMPLES // len(audio)) + 1
+        audio = np.tile(audio, repeats)
+
+    # Take exactly first 64600 samples
+    audio = audio[:TARGET_SAMPLES]
+
+    return torch.tensor(
+        audio,
+        dtype=torch.float32
+    ).unsqueeze(0)
+
+
+def predict_audio(audio_path):
+    audio = load_audio(audio_path)
+
+    detector = AASISTDetector()
+
+    result = detector.predict(audio)
+
+    return result
