@@ -1,12 +1,26 @@
+import torch
+
+from .inference import load_model
+from .preprocessing import load_audio, prepare_audio
+
+
+_model = None
+
+
 def detect_voice(audio_path):
-    """
-    Detect whether a voice is real or AI-generated.
-    """
+    global _model
 
-    result = {
-        "synthetic_probability": 0.0,
-        "authentic_probability": 0.0,
-        "model_confidence": 0.0
-    }
+    if _model is None:
+        _model = load_model()
 
-    return result
+    audio = load_audio(audio_path)
+    audio_tensor = prepare_audio(audio)
+
+    audio_tensor = audio_tensor.to(
+        next(_model.parameters()).device
+    )
+
+    with torch.no_grad():
+        output = _model(audio_tensor)
+
+    return output
