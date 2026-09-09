@@ -7,10 +7,18 @@ from .config import SAMPLE_RATE, TARGET_SAMPLES
 
 
 def load_audio(audio_path):
-    audio, sample_rate = sf.read(
-        str(audio_path),
-        dtype="float32"
-    )
+    try:
+        audio, sample_rate = sf.read(
+            str(audio_path),
+            dtype="float32"
+        )
+    except Exception as e:
+        raise ValueError(
+            f"Unable to read audio file: {e}"
+        )
+
+    if audio.size == 0:
+        raise ValueError("Audio file is empty.")
 
     # Stereo → Mono
     if audio.ndim > 1:
@@ -27,6 +35,9 @@ def load_audio(audio_path):
         )
 
         audio = audio_tensor.numpy()
+
+    if len(audio) == 0:
+        raise ValueError("Audio contains no usable samples.")
 
     return audio.astype(np.float32)
 
