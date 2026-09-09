@@ -10,36 +10,51 @@ _model = None
 def detect_voice(audio_path):
     global _model
 
+    # Load model only once
     if _model is None:
-        _model = load_model()
+        try:
+            _model = load_model()
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to load AASIST model: {e}"
+            )
 
-    audio = load_audio(audio_path)
-    audio_tensor = prepare_audio(audio)
+    try:
+        audio = load_audio(audio_path)
+        audio_tensor = prepare_audio(audio)
 
-    audio_tensor = audio_tensor.to(
-        next(_model.parameters()).device
-    )
-
-    with torch.no_grad():
-        _, output = _model(audio_tensor)
-
-        probabilities = torch.softmax(output, dim=1)
-
-        synthetic_probability = float(
-            probabilities[0, 0].item()
+        audio_tensor = audio_tensor.to(
+            next(_model.parameters()).device
         )
 
-        authentic_probability = float(
-            probabilities[0, 1].item()
-        )
+        with torch.no_grad():
+            _, output = _model(audio_tensor)
 
-        model_confidence = max(
-            synthetic_probability,
-            authentic_probability
-        )
+            probabilities = torch.softmax(output, dim=1)
 
-    return {
-        "synthetic_probability": synthetic_probability,
-        "authentic_probability": authentic_probability,
-        "model_confidence": model_confidence
-    }
+            synthetic_probability = float(
+                probabilities[0, 0].item()
+            )
+
+            authentic_probability = float(
+                probabilities[0, 1].item()
+            )
+
+            model_confidence = max(
+                synthetic_probability,
+                authentic_probability
+            )
+
+        return {
+            "synthetic_probability": synthetic_probability,
+            "authentic_probability": authentic_probability,
+            "model_confidence": model_confidence
+        }
+
+    except ValueError:
+        raise
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Voice detection failed: {e}"
+        )
