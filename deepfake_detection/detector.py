@@ -21,6 +21,6 @@ def detect_voice(audio_path):
     )
 
     with torch.no_grad():
-        output = _model(audio_tensor)
+        _, output = _model(audio_tensor)
 
     return output
