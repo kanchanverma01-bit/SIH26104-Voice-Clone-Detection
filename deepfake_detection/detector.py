@@ -1,60 +1,21 @@
-import torch
-
-from .inference import load_model
-from .preprocessing import load_audio, prepare_audio
-
-
-_model = None
+from .inference import predict_audio
 
 
 def detect_voice(audio_path):
-    global _model
+    """
+    Detect whether an audio file is real or AI-generated.
+    """
 
-    # Load model only once
-    if _model is None:
-        try:
-            _model = load_model()
-        except Exception as e:
-            raise RuntimeError(
-                f"Unable to load AASIST model: {e}"
-            )
+    result = predict_audio(audio_path)
 
-    try:
-        audio = load_audio(audio_path)
-        audio_tensor = prepare_audio(audio)
-
-        audio_tensor = audio_tensor.to(
-            next(_model.parameters()).device
+    return {
+        "synthetic_probability": round(
+            result["synthetic_probability"], 4
+        ),
+        "authentic_probability": round(
+            result["authentic_probability"], 4
+        ),
+        "model_confidence": round(
+            result["model_confidence"], 4
         )
-
-        with torch.no_grad():
-            _, output = _model(audio_tensor)
-
-            probabilities = torch.softmax(output, dim=1)
-
-            synthetic_probability = float(
-                probabilities[0, 0].item()
-            )
-
-            authentic_probability = float(
-                probabilities[0, 1].item()
-            )
-
-            model_confidence = max(
-                synthetic_probability,
-                authentic_probability
-            )
-
-        return {
-            "synthetic_probability": synthetic_probability,
-            "authentic_probability": authentic_probability,
-            "model_confidence": model_confidence
-        }
-
-    except ValueError:
-        raise
-
-    except Exception as e:
-        raise RuntimeError(
-            f"Voice detection failed: {e}"
-        )
+    }
