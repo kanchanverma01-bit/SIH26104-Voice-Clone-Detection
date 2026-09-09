@@ -1,6 +1,6 @@
 import torch
 from .config import MODEL_PATH, DEVICE
-from .aasist_model import Model
+from .AASIST import Model
 
 MODEL_CONFIG = {
     "architecture": "AASIST",
