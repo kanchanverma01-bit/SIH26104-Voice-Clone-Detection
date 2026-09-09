@@ -25,16 +25,21 @@ def detect_voice(audio_path):
 
         probabilities = torch.softmax(output, dim=1)
 
-        synthetic_probability = float(probabilities[0, 0].item())
-        authentic_probability = float(probabilities[0, 1].item())
+        synthetic_probability = float(
+            probabilities[0, 0].item()
+        )
+
+        authentic_probability = float(
+            probabilities[0, 1].item()
+        )
 
         model_confidence = max(
             synthetic_probability,
             authentic_probability
-    )
+        )
 
     return {
         "synthetic_probability": synthetic_probability,
         "authentic_probability": authentic_probability,
         "model_confidence": model_confidence
-}
+    }
