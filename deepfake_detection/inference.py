@@ -11,3 +11,16 @@ MODEL_CONFIG = {
     "pool_ratios": [0.5, 0.7, 0.5, 0.5],
     "temperatures": [2.0, 2.0, 100.0, 100.0]
 }
+def load_model():
+    model = Model(MODEL_CONFIG)
+
+    checkpoint = torch.load(
+        MODEL_PATH,
+        map_location=DEVICE
+    )
+
+    model.load_state_dict(checkpoint)
+    model.to(DEVICE)
+    model.eval()
+
+    return model
