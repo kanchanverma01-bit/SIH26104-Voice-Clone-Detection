@@ -10,6 +10,10 @@ TARGET_SR = 16000
 TARGET_SAMPLES = 64600
 
 
+# Load model ONCE
+_detector = AASISTDetector()
+
+
 def load_audio(audio_path):
     audio, sr = sf.read(audio_path, dtype="float32")
 
@@ -25,7 +29,6 @@ def load_audio(audio_path):
             sr
         ).astype(np.float32)
 
-    # Empty audio check
     if len(audio) == 0:
         raise ValueError("Audio file is empty.")
 
@@ -34,7 +37,7 @@ def load_audio(audio_path):
         repeats = (TARGET_SAMPLES // len(audio)) + 1
         audio = np.tile(audio, repeats)
 
-    # Take exactly first 64600 samples
+    # Exactly 64600 samples
     audio = audio[:TARGET_SAMPLES]
 
     return torch.tensor(
@@ -46,8 +49,6 @@ def load_audio(audio_path):
 def predict_audio(audio_path):
     audio = load_audio(audio_path)
 
-    detector = AASISTDetector()
-
-    result = detector.predict(audio)
+    result = _detector.predict(audio)
 
     return result
