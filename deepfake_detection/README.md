@@ -1,30 +1,30 @@
-# Deepfake Detection
+# Deepfake Voice Detection
 
-This module detects whether a voice recording is authentic or AI-generated/spoofed.
+## Overview
 
-## Model
+This module detects whether an input voice recording is likely to be **authentic (real)** or **synthetic (AI-generated / cloned)**.
 
-The module uses **AASIST (Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention Networks)** for audio deepfake/spoof detection.
+It uses the **AASIST (Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention Networks)** deep learning architecture for audio anti-spoofing.
 
-AASIST is designed for detecting spoofed speech by learning spectro-temporal characteristics from raw audio.
+The module focuses only on **voice authenticity detection**. Final fraud risk and prevention decisions are handled by the downstream Risk Engine.
 
-## Input
+---
 
-The detector accepts a speech audio file.
+## Detection Pipeline
 
-Audio is:
-- Converted to mono if required
-- Resampled to **16 kHz**
-- Prepared as exactly **64,600 samples (~4.04 seconds)** for AASIST inference
-- Shorter audio is repeated to reach the required length
-
-## Output
-
-The module returns the standardized team contract:
-
-```python
-{
-    "synthetic_probability": 0.0,
-    "authentic_probability": 0.0,
-    "model_confidence": 0.0
-}
+```text
+Input Audio
+     ↓
+Audio Loading
+     ↓
+Stereo → Mono
+     ↓
+Resampling → 16 kHz
+     ↓
+Audio Length Normalization
+     ↓
+AASIST Model
+     ↓
+Authentic / Synthetic Probabilities
+     ↓
+Standard JSON Output
