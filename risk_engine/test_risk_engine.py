@@ -20,7 +20,7 @@ m2_output = {
 # Isliye filhaal dummy value use kar rahe hain.
 
 m3_output = {
-    "speaker_match_score": 0.30
+    "speaker_match_score": 0.64
 }
 
 
