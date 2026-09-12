@@ -338,9 +338,9 @@ def run_full_pipeline(audio_bytes, claimed_speaker):
     eventually verify end-to-end once every mock_* is replaced with the
     real thing."""
     y, sr = mock_preprocess_audio(audio_bytes)                     # Member 2
-    detection_result = mock_deepfake_detector(y, sr)                # Member 1
-    speaker_result = mock_speaker_verifier(y, sr, claimed_speaker)  # Member 3
-    risk_result = mock_risk_engine(detection_result, speaker_result)  # Member 5
+    detection_result = real_deepfake_detector(y, sr)                # Member 1
+    speaker_result = real_speaker_verifier(y, sr, claimed_speaker)  # Member 3
+    risk_result = real_risk_engine(detection_result, speaker_result)  # Member 5
     return y, sr, detection_result, speaker_result, risk_result
 
 
