@@ -103,27 +103,26 @@ def real_speaker_verifier(y: np.ndarray, sr: int, claimed_speaker: str) -> dict:
     }
 
 
-def real_risk_engine(authenticity_score: float, clone_probability: float,
-                      speaker_match_score: float, verified: bool) -> dict:
+def real_risk_engine(detection_result: dict, speaker_result: dict) -> dict:
     """
-    Drop-in replacement for mock_risk_engine(...).
+    Drop-in replacement for mock_risk_engine(detection_result, speaker_result).
     Wraps Member 5's calculate_risk() + take_action().
-    Converts 0-100 dashboard scale to 0-1 scale that risk_engine.py expects.
+    Converts 0-100 dashboard scale to the 0-1 scale that risk_engine.py expects.
     """
     m2_output = {
-        "synthetic_probability": clone_probability / 100,
-        "model_confidence": 0.9,  # replace with real model_confidence if passed in
+        "synthetic_probability": detection_result["clone_probability"] / 100,
+        "model_confidence": detection_result.get("model_confidence", 90) / 100,
     }
     m3_output = {
-        "speaker_match_score": speaker_match_score / 100,
+        "speaker_match_score": speaker_result["speaker_match_score"] / 100,
     }
 
     risk_result = calculate_risk(m2_output, m3_output)
     action_result = take_action(risk_result["risk_level"])
 
     return {
-        "risk_score": risk_result["risk_score"],
         "risk_level": risk_result["risk_level"],
         "action": action_result["action"],
+        "risk_score": risk_result["risk_score"],
         "message": action_result["message"],
     }
