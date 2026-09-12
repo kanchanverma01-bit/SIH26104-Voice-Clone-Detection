@@ -30,8 +30,10 @@ def calculate_risk(m2_output, m3_output):
     # Convert to percentage
     risk_percentage = round(risk_score * 100, 2)
 
-    # Risk level
-    if risk_percentage >= 70:
+    # Risk level classification
+    if risk_percentage >= 85:
+        risk_level = "CRITICAL"
+    elif risk_percentage >= 70:
         risk_level = "HIGH"
     elif risk_percentage >= 40:
         risk_level = "MEDIUM"
