@@ -47,7 +47,19 @@ import librosa.display
 import io
 import time
 import random
+import os
+import tempfile
+import sys
+from pathlib import Path
+import soundfile as sf
 from datetime import datetime
+
+# Allow dashboard to import the project's real deepfake detector
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+from deepfake_detection.detector import detect_voice
 
 # ==============================================================================
 # PAGE CONFIG
@@ -274,19 +286,50 @@ def mock_preprocess_audio(audio_bytes):
     return y, sr
 
 
-def mock_deepfake_detector(y, sr):
+def real_deepfake_detector(y, sr):
     """
-    TODO-MEMBER1: Replace with real trained model inference.
-    Input : waveform (np.ndarray), sample_rate (int)
-    Output: dict with 'authenticity_score' and 'clone_probability' (0-100 each,
-            should sum to ~100)
-    Currently: random but weighted mock so the demo looks realistic.
+    Send dashboard audio to the real AASIST deepfake detector.
+
+    Input:
+        y  -> waveform (numpy array)
+        sr -> sample rate
+
+    Output:
+        authenticity_score -> real/authentic percentage
+        clone_probability  -> synthetic/AI-generated percentage
+        model_confidence   -> confidence percentage
     """
-    clone_prob = round(random.uniform(2, 97), 1)
-    return {
-        "authenticity_score": round(100 - clone_prob, 1),
-        "clone_probability": clone_prob,
-    }
+    temp_path = None
+
+    try:
+        # Create a temporary WAV file because detect_voice()
+        # expects an audio file path.
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp:
+            temp_path = temp.name
+
+        # Save dashboard audio as WAV.
+        sf.write(temp_path, y, sr)
+
+        # Run the REAL AASIST-based detector.
+        result = detect_voice(temp_path)
+
+        return {
+            "authenticity_score": round(
+                result["authentic_probability"] * 100, 2
+            ),
+            "clone_probability": round(
+                result["synthetic_probability"] * 100, 2
+            ),
+            "model_confidence": round(
+                result["model_confidence"] * 100, 2
+            )
+        }
+
+    finally:
+        # Remove temporary file after inference.
+        if temp_path is not None and os.path.exists(temp_path):
+            os.remove(temp_path)
+
 
 
 def mock_speaker_verifier(y, sr, claimed_speaker):
@@ -338,9 +381,9 @@ def run_full_pipeline(audio_bytes, claimed_speaker):
     eventually verify end-to-end once every mock_* is replaced with the
     real thing."""
     y, sr = mock_preprocess_audio(audio_bytes)                     # Member 2
-    detection_result = real_deepfake_detector(y, sr)                # Member 1
-    speaker_result = real_speaker_verifier(y, sr, claimed_speaker)  # Member 3
-    risk_result = real_risk_engine(detection_result, speaker_result)  # Member 5
+    detection_result = real_deepfake_detector(y, sr)                # REAL AASIST
+    speaker_result = mock_speaker_verifier(y, sr, claimed_speaker)  # Member 3
+    risk_result = mock_risk_engine(detection_result, speaker_result)  # Member 5
     return y, sr, detection_result, speaker_result, risk_result
 
 
