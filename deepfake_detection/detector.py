@@ -2,20 +2,41 @@ from .inference import predict_audio
 
 
 def detect_voice(audio_path):
-    """
-    Detect whether an audio file is real or AI-generated.
-    """
 
     result = predict_audio(audio_path)
 
+    synthetic = float(
+        result["synthetic_probability"]
+    )
+
+    authentic = float(
+        result["authentic_probability"]
+    )
+
+    confidence = float(
+        result["model_confidence"]
+    )
+
     return {
         "synthetic_probability": round(
-            result["synthetic_probability"], 4
+            synthetic, 4
         ),
+
         "authentic_probability": round(
-            result["authentic_probability"], 4
+            authentic, 4
         ),
+
         "model_confidence": round(
-            result["model_confidence"], 4
-        )
+            confidence, 4
+        ),
+
+        "class_0_probability": round(
+            float(result.get("class_0_probability", 0.0)),
+            4
+        ),
+
+        "class_1_probability": round(
+            float(result.get("class_1_probability", 0.0)),
+            4
+        ),
     }
