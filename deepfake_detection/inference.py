@@ -31,7 +31,6 @@ def load_audio(audio_path):
 
     # Resample to 16 kHz
     if sr != TARGET_SR:
-
         audio = resample_poly(
             audio,
             TARGET_SR,
@@ -59,14 +58,13 @@ def load_audio(audio_path):
     if peak > 0:
         audio = audio / peak
 
-    # Pad short audio
     # Zero-pad short audio
     if len(audio) < TARGET_SAMPLES:
         audio = np.pad(
-        audio,
-        (0, TARGET_SAMPLES - len(audio)),
-        mode="constant"
-    )
+            audio,
+            (0, TARGET_SAMPLES - len(audio)),
+            mode="constant"
+        )
 
     # Exactly 64600 samples
     audio = audio[:TARGET_SAMPLES]
