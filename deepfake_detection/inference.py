@@ -60,16 +60,13 @@ def load_audio(audio_path):
         audio = audio / peak
 
     # Pad short audio
+    # Zero-pad short audio
     if len(audio) < TARGET_SAMPLES:
-
-        repeats = (
-            TARGET_SAMPLES // len(audio)
-        ) + 1
-
-        audio = np.tile(
-            audio,
-            repeats
-        )
+        audio = np.pad(
+        audio,
+        (0, TARGET_SAMPLES - len(audio)),
+        mode="constant"
+    )
 
     # Exactly 64600 samples
     audio = audio[:TARGET_SAMPLES]
