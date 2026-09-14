@@ -1,9 +1,7 @@
 streamlit
 numpy
-pandas
+librosa
+soundfile
 scikit-learn
 torch
 torchaudio
-librosa
-soundfile
-matplotlib
