@@ -69,7 +69,7 @@ with st.sidebar:
 
 
 # ============================================================
-# THEME COLORS
+# THEME
 # ============================================================
 if theme == "Dark":
 
@@ -103,7 +103,7 @@ else:
 
 
 # ============================================================
-# GLOBAL CSS
+# CSS
 # ============================================================
 st.markdown(
     f"""
@@ -312,7 +312,7 @@ def safe_percentage(value):
         value = float(value)
 
         if value <= 1:
-            value = value * 100
+            value *= 100
 
         return max(
             0.0,
@@ -346,6 +346,9 @@ def extract_result_value(
     return default
 
 
+# ============================================================
+# SPEAKER SIMILARITY
+# ============================================================
 def calculate_speaker_similarity(
     file1,
     file2
@@ -431,46 +434,50 @@ def calculate_speaker_similarity(
         return 0.0
 
 
+# ============================================================
+# RISK ENGINE
+# ============================================================
 def calculate_risk(
     synthetic_probability,
     speaker_similarity=None
 ):
 
-    deepfake_score = synthetic_probability
+    deepfake_score = float(
+        synthetic_probability
+    )
 
+    # Before speaker verification:
+    # use ONLY the deepfake detection result.
     if speaker_similarity is None:
 
-        speaker_mismatch = 50.0
+        risk_score = deepfake_score
 
     else:
 
         speaker_mismatch = (
-            1.0 - speaker_similarity
+            1.0 -
+            float(speaker_similarity)
         ) * 100
 
-    risk_score = (
-        deepfake_score * 0.70
-    ) + (
-        speaker_mismatch * 0.30
-    )
+        # Combined security score
+        risk_score = (
+            deepfake_score * 0.70
+        ) + (
+            speaker_mismatch * 0.30
+        )
 
-    if (
-        deepfake_score >= 70
-        and speaker_mismatch >= 40
-    ):
+    # Risk classification
+    if risk_score >= 70:
 
         level = "CRITICAL"
         action = "BLOCK / ESCALATE"
 
-    elif deepfake_score >= 70:
+    elif risk_score >= 40:
 
         level = "HIGH"
         action = "SECURITY ALERT"
 
-    elif (
-        deepfake_score >= 40
-        or speaker_mismatch >= 40
-    ):
+    elif risk_score >= 20:
 
         level = "MEDIUM"
         action = "VERIFY / MONITOR"
@@ -605,18 +612,19 @@ is authentic or potentially AI-generated.
 )
 
 
-col1, col2 = st.columns(2)
+voice_col1, voice_col2 = st.columns(2)
 
 
 # ============================================================
 # RECORD VOICE
 # ============================================================
-with col1:
+with voice_col1:
 
     st.markdown("### 🎤 Record Voice")
 
     recorded_audio = st.audio_input(
-        "Record a short voice sample"
+        "Record a short voice sample",
+        key="main_voice_recorder"
     )
 
     if recorded_audio is not None:
@@ -629,6 +637,10 @@ with col1:
             "recorded_voice.wav"
         )
 
+        # Reset old verification when new voice is selected
+        st.session_state.analysis_result = None
+        st.session_state.speaker_result = None
+
         st.audio(
             st.session_state.voice_bytes,
             format="audio/wav"
@@ -638,7 +650,7 @@ with col1:
 # ============================================================
 # UPLOAD VOICE
 # ============================================================
-with col2:
+with voice_col2:
 
     st.markdown("### 📁 Upload Audio")
 
@@ -651,6 +663,7 @@ with col2:
             "ogg",
             "flac"
         ],
+        key="main_voice_uploader"
     )
 
     if uploaded_audio is not None:
@@ -662,6 +675,10 @@ with col2:
         st.session_state.voice_name = (
             uploaded_audio.name
         )
+
+        # Reset old verification when new voice is selected
+        st.session_state.analysis_result = None
+        st.session_state.speaker_result = None
 
         st.audio(
             st.session_state.voice_bytes
@@ -676,9 +693,10 @@ if st.session_state.voice_bytes is not None:
     st.markdown("")
 
     analyze_button = st.button(
-        "🔍  ANALYZE VOICE",
+        "🔍 ANALYZE VOICE",
         use_container_width=True,
-        type="primary"
+        type="primary",
+        key="analyze_voice_button"
     )
 
     if analyze_button:
@@ -700,81 +718,72 @@ if st.session_state.voice_bytes is not None:
                     temp_path
                 )
 
-                st.session_state.analysis_result = (
-                    result
-                )
+                st.session_state.analysis_result = result
 
-                synthetic_probability = (
-                    safe_percentage(
-                        extract_result_value(
-                            result,
-                            [
-                                "synthetic_probability",
-                                "synthetic_prob",
-                                "fake_probability",
-                                "deepfake_probability"
-                            ]
-                        )
+                synthetic_probability = safe_percentage(
+                    extract_result_value(
+                        result,
+                        [
+                            "synthetic_probability",
+                            "synthetic_prob",
+                            "fake_probability",
+                            "deepfake_probability"
+                        ]
                     )
                 )
 
-                authentic_probability = (
-                    safe_percentage(
-                        extract_result_value(
-                            result,
-                            [
-                                "authentic_probability",
-                                "authentic_prob",
-                                "real_probability"
-                            ]
-                        )
+                authentic_probability = safe_percentage(
+                    extract_result_value(
+                        result,
+                        [
+                            "authentic_probability",
+                            "authentic_prob",
+                            "real_probability"
+                        ]
                     )
                 )
 
-                model_confidence = (
-                    safe_percentage(
-                        extract_result_value(
-                            result,
-                            [
-                                "model_confidence",
-                                "confidence"
-                            ],
-                            synthetic_probability / 100
-                        )
+                model_confidence = safe_percentage(
+                    extract_result_value(
+                        result,
+                        [
+                            "model_confidence",
+                            "confidence"
+                        ],
+                        synthetic_probability / 100
                     )
                 )
 
                 if authentic_probability == 0:
 
                     authentic_probability = (
-                        100
-                        -
+                        100 -
                         synthetic_probability
                     )
 
                 if model_confidence == 0:
 
                     model_confidence = (
-                        synthetic_probability
+                        max(
+                            synthetic_probability,
+                            authentic_probability
+                        )
                     )
 
-                risk_score, risk_level, action = (
-                    calculate_risk(
-                        synthetic_probability
-                    )
-                )
-
-                st.session_state.risk_score = (
-                    risk_score
-                )
-
-                st.session_state.risk_level = (
-                    risk_level
-                )
-
-                st.session_state.action = (
+                # IMPORTANT:
+                # Speaker verification has not happened yet,
+                # so only AI detection is used here.
+                (
+                    risk_score,
+                    risk_level,
                     action
+                ) = calculate_risk(
+                    synthetic_probability
                 )
+
+                st.session_state.risk_score = risk_score
+                st.session_state.risk_level = risk_level
+                st.session_state.action = action
 
             st.success(
                 "Voice analysis completed successfully."
@@ -844,15 +853,17 @@ if st.session_state.analysis_result is not None:
     if authentic_probability == 0:
 
         authentic_probability = (
-            100
-            -
+            100 -
             synthetic_probability
         )
 
     if model_confidence == 0:
 
         model_confidence = (
-            synthetic_probability
+            max(
+                synthetic_probability,
+                authentic_probability
+            )
         )
 
     st.markdown(
@@ -955,7 +966,7 @@ if st.session_state.analysis_result is not None:
 </div>
 
 <div class="section-subtitle">
-Compare the analyzed voice against a trusted reference voice.
+Verify whether the analyzed voice matches a trusted reference speaker.
 </div>
 
 </div>
@@ -963,66 +974,48 @@ Compare the analyzed voice against a trusted reference voice.
         unsafe_allow_html=True
     )
 
-    ref_col1, ref_col2 = st.columns(2)
+    st.markdown(
+        "### 📁 Upload Trusted Reference Voice"
+    )
 
+    reference_upload = st.file_uploader(
+        "Select the trusted reference voice",
+        type=[
+            "wav",
+            "mp3",
+            "m4a",
+            "ogg",
+            "flac"
+        ],
+        key="reference_uploader",
+        help="Upload a clear recording of the genuine speaker."
+    )
 
-    # ========================================================
-    # REFERENCE VOICE INFORMATION
-    # ========================================================
-    with ref_col1:
+    if reference_upload is not None:
 
-        st.markdown("### 🎤 Trusted Reference")
-
-        st.info(
-            "Upload a trusted reference voice sample "
-            "to verify the speaker identity."
+        st.session_state.reference_bytes = (
+            reference_upload.getvalue()
         )
 
-
-    # ========================================================
-    # REFERENCE VOICE UPLOAD
-    # ========================================================
-    with ref_col2:
-
-        st.markdown("### 📁 Upload Reference Voice")
-
-        reference_upload = st.file_uploader(
-            "Upload a trusted reference voice",
-            type=[
-                "wav",
-                "mp3",
-                "m4a",
-                "ogg",
-                "flac"
-            ],
-            key="reference_uploader"
+        st.session_state.reference_name = (
+            reference_upload.name
         )
 
-        if reference_upload is not None:
+        st.success(
+            f"Reference voice loaded: {reference_upload.name}"
+        )
 
-            st.session_state.reference_bytes = (
-                reference_upload.getvalue()
-            )
-
-            st.session_state.reference_name = (
-                reference_upload.name
-            )
-
-            st.audio(
-                st.session_state.reference_bytes
-            )
-
-
-    # ========================================================
-    # VERIFY SPEAKER
-    # ========================================================
-    if st.session_state.reference_bytes is not None:
+        st.audio(
+            st.session_state.reference_bytes
+        )
 
         st.markdown("")
 
         verify_button = st.button(
-            "🔐  VERIFY SPEAKER",
-            use_container_width=True
+            "🔐 VERIFY SPEAKER",
+            use_container_width=True,
+            type="primary",
+            key="verify_speaker_button"
         )
 
         if verify_button:
@@ -1046,28 +1039,24 @@ Compare the analyzed voice against a trusted reference voice.
                         st.session_state.reference_name
                     )
 
-                    similarity = (
-                        calculate_speaker_similarity(
-                            analysis_temp,
-                            reference_temp
-                        )
+                    similarity = calculate_speaker_similarity(
+                        analysis_temp,
+                        reference_temp
                     )
 
                     st.session_state.speaker_result = (
                         similarity
                     )
 
-                    synthetic_probability = (
-                        safe_percentage(
-                            extract_result_value(
-                                st.session_state.analysis_result,
-                                [
-                                    "synthetic_probability",
-                                    "synthetic_prob",
-                                    "fake_probability",
-                                    "deepfake_probability"
-                                ]
-                            )
+                    synthetic_probability = safe_percentage(
+                        extract_result_value(
+                            st.session_state.analysis_result,
+                            [
+                                "synthetic_probability",
+                                "synthetic_prob",
+                                "fake_probability",
+                                "deepfake_probability"
+                            ]
                         )
                     )
 
@@ -1093,7 +1082,7 @@ Compare the analyzed voice against a trusted reference voice.
                     )
 
                 st.success(
-                    "Speaker verification completed."
+                    "✅ Speaker verification completed successfully."
                 )
 
             except Exception as e:
@@ -1120,6 +1109,12 @@ Compare the analyzed voice against a trusted reference voice.
                         except Exception:
                             pass
 
+    else:
+
+        st.info(
+            "👆 Upload a trusted reference voice to enable Speaker Verification."
+        )
+
 
 # ============================================================
 # SPEAKER RESULT
@@ -1127,8 +1122,7 @@ Compare the analyzed voice against a trusted reference voice.
 if st.session_state.speaker_result is not None:
 
     similarity_percentage = (
-        st.session_state.speaker_result
-        *
+        st.session_state.speaker_result *
         100
     )
 
@@ -1136,7 +1130,7 @@ if st.session_state.speaker_result is not None:
         f"""
 <div class="status-box">
 
-<b>Speaker Verification Completed</b><br><br>
+<b>👤 Speaker Verification Completed</b><br><br>
 
 <b>Speaker Similarity:</b>
 {similarity_percentage:.2f}%
@@ -1149,8 +1143,7 @@ if st.session_state.speaker_result is not None:
     if similarity_percentage >= 70:
 
         st.success(
-            "✅ Speaker characteristics appear consistent "
-            "with the reference voice."
+            "✅ Speaker characteristics appear consistent with the reference voice."
         )
 
     else:
@@ -1264,8 +1257,8 @@ Security action generated from the final risk assessment.
     if level == "CRITICAL":
 
         st.error(
-            "🚫 THREAT BLOCKED — High-risk voice impersonation "
-            "detected. Interaction should be blocked and escalated."
+            "🚫 THREAT BLOCKED — High-risk voice impersonation detected. "
+            "Interaction should be blocked and escalated."
         )
 
     elif level == "HIGH":
